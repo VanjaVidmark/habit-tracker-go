@@ -18,16 +18,26 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	_, err = db.Exec("PRAGMA foreign_keys = ON;")
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer db.Close()
 
-	habit.InitSchema(db)
-	store := &habit.Store{DB: db}
+	if err := habit.InitSchema(db); err != nil {
+		log.Fatal(err)
+	}
+	if err := entry.InitSchema(db); err != nil {
+		log.Fatal(err)
+	}
+	habitStore := &habit.Store{DB: db}
+	entryStore := &entry.Store{DB: db}
 
 	// Start server
 	server := gin.Default()
 
-	habit.RegisterRoutes(server, store)
-	entry.RegisterRoutes(server)
+	habit.RegisterRoutes(server, habitStore)
+	entry.RegisterRoutes(server, entryStore)
 
 	server.Run(":8080")
 }

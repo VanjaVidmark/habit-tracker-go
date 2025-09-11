@@ -18,7 +18,7 @@ func RegisterRoutes(r *gin.Engine, store *Store) {
 	r.GET("/habits", h.GetAll)
 	r.GET("/habits/:id", h.GetByID)
 	r.POST("/habits", h.CreateHabit)
-	// r.PATCH("/habits/:id", h.UpdateHabit)
+	r.PATCH("/habits/:id", h.UpdateHabit)
 	r.DELETE("/habits/:id", h.DeleteHabit)
 }
 
@@ -73,7 +73,6 @@ func (h *Handler) CreateHabit(c *gin.Context) {
 	c.IndentedJSON(http.StatusCreated, newHabit)
 }
 
-/*
 func (h *Handler) UpdateHabit(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := uuid.Parse(idParam)
@@ -87,35 +86,38 @@ func (h *Handler) UpdateHabit(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-	log.Println(update)
 
-	for i := range habits {
-		if habits[i].ID == id {
-			if update.Name != "" {
-				habits[i].Name = update.Name
-			}
-			if update.Description != "" {
-				habits[i].Description = update.Description
-			}
-			if update.Frequency != "" {
-				if !update.Frequency.IsValid() {
-					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid frequency"})
-					return
-				}
-				habits[i].Frequency = update.Frequency
-			}
-			if !update.StartDate.IsZero() {
-				habits[i].StartDate = update.StartDate
-			}
-
-			c.JSON(http.StatusOK, habits[i])
-			return
-		}
+	habit, err := h.Store.GetById(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Habit not found"})
+		return
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": "Habit not found"})
+	if update.Name != "" {
+		habit.Name = update.Name
+	}
+	if update.Description != "" {
+		habit.Description = update.Description
+	}
+	if update.Frequency != "" {
+		if !update.Frequency.IsValid() {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid frequency"})
+			return
+		}
+		habit.Frequency = update.Frequency
+	}
+	if !update.StartDate.IsZero() {
+		habit.StartDate = update.StartDate
+	}
+
+	habit, e := h.Store.Update(id, habit)
+	if e != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Habit update failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, habit)
 }
-*/
 
 func (h *Handler) DeleteHabit(c *gin.Context) {
 	idParam := c.Param("id")

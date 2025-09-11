@@ -2,7 +2,6 @@ package habit
 
 import (
 	"database/sql"
-	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,32 +11,17 @@ type Store struct {
 	DB *sql.DB
 }
 
-func InitSchema(db *sql.DB) {
-	db, err := sql.Open("sqlite3", "./habits.db")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-
-	// Create tables if not exist
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS habits (
-			id TEXT PRIMARY KEY,
-			name TEXT,
-			description TEXT,
-			frequency TEXT,
-			start_date DATETIME
-		);
-		CREATE TABLE IF NOT EXISTS entries (
-			id TEXT PRIMARY KEY,
-			habit_id TEXT,
-			timestamp DATETIME,
-			note TEXT
-		);
-	`)
-	if err != nil {
-		log.Fatal(err)
-	}
+func InitSchema(db *sql.DB) error {
+	_, err := db.Exec(`
+        CREATE TABLE IF NOT EXISTS habits (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            description TEXT,
+            frequency TEXT,
+            start_date DATETIME
+        );
+    `)
+	return err
 }
 
 func (s *Store) GetAll() ([]Habit, error) {
@@ -85,6 +69,22 @@ func (s *Store) Create(h *Habit) error {
 		h.ID.String(), h.Name, h.Description, h.Frequency, h.StartDate.Format(time.RFC3339),
 	)
 	return err
+}
+
+func (s *Store) Update(id uuid.UUID, update Habit) (Habit, error) {
+	// Updates all fileds, so important that "update" contains all correct fields.
+	_, err := s.DB.Exec(`
+        UPDATE habits 
+        SET name = ?, description = ?, frequency = ?, start_date = ?
+        WHERE id = ?`,
+		update.Name, update.Description, update.Frequency, update.StartDate.Format(time.RFC3339),
+		id.String(),
+	)
+	if err != nil {
+		return Habit{}, err
+	}
+
+	return s.GetById(id)
 }
 
 func (s *Store) Delete(id uuid.UUID) error {

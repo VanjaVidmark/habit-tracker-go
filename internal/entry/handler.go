@@ -8,14 +8,18 @@ import (
 	"github.com/google/uuid"
 )
 
-var entries []Entry
-
-func RegisterRoutes(r *gin.Engine) {
-	r.POST("/habits/:id/tracking", CreateTracking)
-	r.GET("/habits/:id/tracking", GetTrackings)
+type Handler struct {
+	Store *Store
 }
 
-func CreateTracking(c *gin.Context) {
+func RegisterRoutes(r *gin.Engine, store *Store) {
+	h := &Handler{Store: store}
+
+	r.POST("/habits/:id/tracking", h.CreateTracking)
+	r.GET("/habits/:id/tracking", h.GetTrackings)
+}
+
+func (h *Handler) CreateTracking(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
@@ -38,11 +42,14 @@ func CreateTracking(c *gin.Context) {
 		newEntry.Timestamp = time.Now()
 	}
 
-	entries = append(entries, newEntry)
+	if err := h.Store.Create(&newEntry); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.IndentedJSON(http.StatusCreated, newEntry)
 }
 
-func GetTrackings(c *gin.Context) {
+func (h *Handler) GetTrackings(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
@@ -52,13 +59,10 @@ func GetTrackings(c *gin.Context) {
 
 	// Insert validation that habit is valid?
 
-	var entriesToReturn []Entry
-
-	for _, entry := range entries {
-		if entry.HabitId == id {
-			entriesToReturn = append(entriesToReturn, entry)
-		}
+	entries, err := h.Store.GetByHabitId(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch entries"})
 	}
 
-	c.JSON(http.StatusOK, entriesToReturn)
+	c.JSON(http.StatusOK, entries)
 }
